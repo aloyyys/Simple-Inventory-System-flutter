@@ -2,6 +2,11 @@
 
 A Simple Inventory System App built with Flutter that allows users to Create, Read, Update, and Delete (CRUD) inventory items. It features a user-friendly interface with persistent data storage using SharedPreferences, ensuring inventory lists remain saved even after closing the app.
 
+![](https://github.com/user-attachments/assets/5c610535-97ce-4acb-a4f7-c4c2227377dd)
+
+![image](https://github.com/user-attachments/assets/59d44656-1c31-449a-9f44-2969d3958d24)
+
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
