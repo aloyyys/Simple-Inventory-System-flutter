@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'database_helper.dart';
+import 'item.dart';
 
 void main() {
   runApp(InventoryApp());
@@ -17,29 +18,13 @@ class InventoryApp extends StatelessWidget {
   }
 }
 
-class Item {
-  String name;
-  int quantity;
-
-  Item(this.name, this.quantity);
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'quantity': quantity,
-  };
-
-  factory Item.fromJson(Map<String, dynamic> json) {
-    return Item(json['name'], json['quantity']);
-  }
-}
-
 class InventoryScreen extends StatefulWidget {
   @override
   _InventoryScreenState createState() => _InventoryScreenState();
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
-  final List<Item> _items = [];
+  List<Item> _items = [];
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
 
@@ -50,33 +35,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _loadItems() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? storedItems = prefs.getStringList('inventory');
-    if (storedItems != null) {
-      setState(() {
-        _items.addAll(storedItems.map((e) => Item.fromJson(jsonDecode(e))));
-      });
-    }
-  }
-
-  Future<void> _saveItems() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> storedItems = _items.map((e) => jsonEncode(e.toJson())).toList();
-    prefs.setStringList('inventory', storedItems);
-  }
-
-  void _addItem() {
+    final items = await DatabaseHelper.instance.getItems();
     setState(() {
-      _items.add(Item(_nameController.text, int.parse(_quantityController.text)));
-      _nameController.clear();
-      _quantityController.clear();
+      _items = items;
     });
-    _saveItems();
   }
 
-  void _editItem(int index) {
-    _nameController.text = _items[index].name;
-    _quantityController.text = _items[index].quantity.toString();
+  void _addItem() async {
+    final item = Item(_nameController.text, int.parse(_quantityController.text));
+    await DatabaseHelper.instance.insertItem(item);
+    _nameController.clear();
+    _quantityController.clear();
+    _loadItems();
+  }
+
+  void _editItem(Item item) async {
+    _nameController.text = item.name;
+    _quantityController.text = item.quantity.toString();
+
     showDialog(
       context: context,
       builder: (context) {
@@ -91,13 +67,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           actions: [
             ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _items[index].name = _nameController.text;
-                  _items[index].quantity = int.parse(_quantityController.text);
-                });
-                _saveItems();
+              onPressed: () async {
+                item.name = _nameController.text;
+                item.quantity = int.parse(_quantityController.text);
+                await DatabaseHelper.instance.updateItem(item);
                 Navigator.of(context).pop();
+                _loadItems();
               },
               child: Text("Save"),
             )
@@ -107,12 +82,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  void _deleteItem(int index) {
-    setState(() {
-      _items.removeAt(index);
-    });
-    _saveItems();
+  void _deleteItem(int id) async {
+    await DatabaseHelper.instance.deleteItem(id);
+    _loadItems();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -142,8 +116,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
               itemBuilder: (context, index) {
                 return ItemCard(
                   item: _items[index],
-                  onEdit: () => _editItem(index),
-                  onDelete: () => _deleteItem(index),
+                  onEdit: () => _editItem(_items[index]),
+                  onDelete: () => _deleteItem(_items[index].id!),
                 );
               },
             ),
